@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Student Task Manager</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;font-family:Arial,sans-serif;
+ background:#f1f5f9;color:#1e293b;
+}
+header{
+ background:#4f46e5;color:white;padding:22px;
+ text-align:center;
+}
+.container{
+ max-width:900px;margin:35px auto;padding:20px;
+}
+.card{
+ background:white;padding:25px;border-radius:14px;
+ box-shadow:0 4px 15px #00000012;margin-bottom:20px;
+}
+h2{margin-top:0;color:#3730a3}
+input{
+ width:100%;padding:12px;margin:8px 0;
+ border:1px solid #cbd5e1;border-radius:7px;
+}
+button{
+ border:0;padding:11px 16px;border-radius:7px;
+ cursor:pointer;background:#4f46e5;color:white;
+ margin:4px;
+}
+button:hover{opacity:.85}
+.secondary{background:#64748b}
+.danger{background:#dc2626}
+.success{background:#16a34a}
+.hidden{display:none}
+.task{
+ display:flex;justify-content:space-between;
+ align-items:center;gap:10px;padding:13px;
+ border-bottom:1px solid #e2e8f0;
+}
+.task span{overflow-wrap:anywhere}
+.done{text-decoration:line-through;color:#94a3b8}
+.actions{display:flex;flex-wrap:wrap}
+.stats{display:flex;gap:12px;flex-wrap:wrap}
+.stat{
+ flex:1;min-width:120px;background:#eef2ff;
+ padding:16px;border-radius:9px;text-align:center;
+}
+small{color:#64748b}
+@media(max-width:600px){
+ .container{margin:10px auto;padding:12px}
+ .task{align-items:flex-start;flex-direction:column}
+ .actions{width:100%}
+}
+</style>
+</head>
+<body>
+
+<header>
+ <h1>Student Task Manager</h1>
+ <p>Manage your daily academic tasks easily</p>
+</header>
+
+<div class="container">
+
+ <section class="card" id="auth">
+  <h2>Student Account</h2>
+  <input id="name" placeholder="Full Name (for signup)">
+  <input id="email" type="email" placeholder="Email Address">
+  <input id="password" type="password" placeholder="Password">
+  <button onclick="signup()">Sign Up</button>
+  <button class="secondary" onclick="login()">Login</button>
+  <p id="message"></p>
+  <small>Demo application: account information is stored locally in this browser.</small>
+ </section>
+
+ <section class="hidden" id="dashboard">
+  <div class="card">
+   <h2>Welcome, <span id="student"></span>!</h2>
+   <button class="danger" onclick="logout()">Logout</button>
+  </div>
+
+  <div class="stats">
+   <div class="stat">Total Tasks<h2 id="total">0</h2></div>
+   <div class="stat">Completed<h2 id="completed">0</h2></div>
+   <div class="stat">Pending<h2 id="pending">0</h2></div>
+  </div>
+
+  <div class="card">
+   <h2>Add New Task</h2>
+   <input id="taskInput" placeholder="Enter your task">
+   <button onclick="addTask()">Add Task</button>
+  </div>
+
+  <div class="card">
+   <h2>My Tasks</h2>
+   <div id="taskList"></div>
+  </div>
+ </section>
+
+</div>
+
+<script>
+let currentUser = localStorage.getItem("stm_session");
+let users = JSON.parse(localStorage.getItem("stm_users") || "{}");
+let tasks = JSON.parse(localStorage.getItem("stm_tasks") || "{}");
+
+function saveUsers(){
+ localStorage.setItem("stm_users",JSON.stringify(users));
+}
+function saveTasks(){
+ localStorage.setItem("stm_tasks",JSON.stringify(tasks));
+}
+function signup(){
+ const name=document.getElementById("name").value.trim();
+ const email=document.getElementById("email").value.trim().toLowerCase();
+ const password=document.getElementById("password").value;
+ const msg=document.getElementById("message");
+
+ if(!name || !email || !password){
+  msg.textContent="Please fill all fields.";
+  return;
+ }
+ if(password.length<6){
+  msg.textContent="Password must be at least 6 characters.";
+  return;
+ }
+ if(users[email]){
+  msg.textContent="Account already exists. Please login.";
+  return;
+ }
+ users[email]={name,password};
+ tasks[email]=[];
+ saveUsers();
+ saveTasks();
+ msg.textContent="Signup successful! Now login.";
+}
+function login(){
+ const email=document.getElementById("email").value.trim().toLowerCase();
+ const password=document.getElementById("password").value;
+ const msg=document.getElementById("message");
+
+ if(users[email] && users[email].password===password){
+  currentUser=email;
+  localStorage.setItem("stm_session",email);
+  showDashboard();
+ }else{
+  msg.textContent="Invalid email or password.";
+ }
+}
+function showDashboard(){
+ if(!currentUser || !users[currentUser]){
+  currentUser=null;
+  localStorage.removeItem("stm_session");
+  document.getElementById("auth").classList.remove("hidden");
+  document.getElementById("dashboard").classList.add("hidden");
+  return;
+ }
+ document.getElementById("auth").classList.add("hidden");
+ document.getElementById("dashboard").classList.remove("hidden");
+ document.getElementById("student").textContent=users[currentUser].name;
+ renderTasks();
+}
+function logout(){
+ currentUser=null;
+ localStorage.removeItem("stm_session");
+ document.getElementById("dashboard").classList.add("hidden");
+ document.getElementById("auth").classList.remove("hidden");
+}
+function addTask(){
+ const input=document.getElementById("taskInput");
+ const title=input.value.trim();
+ if(!title){
+  alert("Please enter a task.");
+  return;
+ }
+ tasks[currentUser].push({
+  id:Date.now(),title,completed:false
+ });
+ saveTasks();
+ input.value="";
+ renderTasks();
+}
+function toggleTask(id){
+ const task=tasks[currentUser].find(t=>t.id===id);
+ if(task){
+  task.completed=!task.completed;
+  saveTasks();
+  renderTasks();
+ }
+}
+function deleteTask(id){
+ if(!confirm("Are you sure you want to delete this task?"))return;
+ tasks[currentUser]=tasks[currentUser].filter(t=>t.id!==id);
+ saveTasks();
+ renderTasks();
+}
+function renderTasks(){
+ const list=document.getElementById("taskList");
+ list.innerHTML="";
+ const userTasks=tasks[currentUser]||[];
+
+ userTasks.forEach(task=>{
+  const div=document.createElement("div");
+  div.className="task";
+  const span=document.createElement("span");
+  span.textContent=task.title;
+  if(task.completed)span.className="done";
+
+  const actions=document.createElement("div");
+  actions.className="actions";
+
+  const complete=document.createElement("button");
+  complete.className="success";
+  complete.textContent=task.completed?"Undo":"Complete";
+  complete.onclick=()=>toggleTask(task.id);
+
+  const remove=document.createElement("button");
+  remove.className="danger";
+  remove.textContent="Delete";
+  remove.onclick=()=>deleteTask(task.id);
+
+  actions.append(complete,remove);
+  div.append(span,actions);
+  list.append(div);
+ });
+
+ const done=userTasks.filter(t=>t.completed).length;
+ document.getElementById("total").textContent=userTasks.length;
+ document.getElementById("completed").textContent=done;
+ document.getElementById("pending").textContent=userTasks.length-done;
+}
+showDashboard();
+</script>
+</body>
+</html>
